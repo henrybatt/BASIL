@@ -17,26 +17,18 @@ import scala.sys.process.*
 import scala.io.Source
 import java.io.{BufferedWriter, File, FileWriter}
 
-case class TestConfig(
-  boogieFlags: Seq[String] = Seq("/timeLimit:10", "/useArrayAxioms"),
-  staticAnalysisConfig: Option[StaticAnalysisConfig] = None,
-  useBAPFrontend: Boolean,
-  expectVerify: Boolean,
-  checkExpected: Boolean = false,
-  logResults: Boolean = false,
-  simplify: Boolean = false
-)
+case class TestConfig(boogieFlags: Seq[String] = Seq("/timeLimit:10", "/useArrayAxioms"),
+                      staticAnalysisConfig: Option[StaticAnalysisConfig] = None,
+                      useBAPFrontend: Boolean,
+                      expectVerify: Boolean,
+                      checkExpected: Boolean = false,
+                      logResults: Boolean = false,
+                      simplify: Boolean = false,
+                      summariseProcedures: Boolean = false,
+                     )
 
 trait BASILTest {
-  def runBASIL(
-    inputPath: String,
-    RELFPath: String,
-    specPath: Option[String],
-    BPLPath: String,
-    staticAnalysisConf: Option[StaticAnalysisConfig],
-    simplify: Boolean = false,
-    postLoad: IRContext => Unit = s => ()
-  ): BASILResult = {
+  def runBASIL(inputPath: String, RELFPath: String, specPath: Option[String], BPLPath: String, staticAnalysisConf: Option[StaticAnalysisConfig], simplify: Boolean = false, summariseProcedures: Boolean = false): BASILResult = {
     val specFile = if (specPath.isDefined && File(specPath.get).exists) {
       specPath
     } else {
@@ -45,6 +37,7 @@ trait BASILTest {
     val config = BASILConfig(
       loading = ILLoadingConfig(inputFile = inputPath, relfFile = RELFPath, specFile = specFile, parameterForm = false),
       simplify = simplify,
+      summariseProcedures = summariseProcedures,
       staticAnalysis = staticAnalysisConf,
       boogieTranslation =
         util.BoogieGeneratorConfig().copy(memoryFunctionType = util.BoogieMemoryAccessMode.SuccessiveStoreSelect),

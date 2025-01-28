@@ -155,7 +155,7 @@ trait SystemTests extends AnyFunSuite, BASILTest {
 
     Logger.info(s"$name/$variation$testSuffix")
     val timer = PerformanceTimer(s"test $name/$variation$testSuffix")
-    runBASIL(inputPath, RELFPath, Some(specPath), BPLPath, conf.staticAnalysisConfig, conf.simplify)
+    runBASIL(inputPath, RELFPath, Some(specPath), BPLPath, conf.staticAnalysisConfig, conf.simplify, conf.summariseProcedures)
     val translateTime = timer.checkPoint("translate-boogie")
     Logger.info(s"$name/$variation$testSuffix DONE")
 
@@ -507,22 +507,10 @@ class MemoryRegionTestsNoRegion extends SystemTests {
 class ProcedureSummaryTests extends SystemTests {
   // TODO currently procedure_summary3 verifies despite incorrect procedure summary analysis
   // this is due to BASIL's currently limited handling of non-returning calls
-  runTests(
-    "procedure_summaries",
-    TestConfig(
-      staticAnalysisConfig = Some(StaticAnalysisConfig(summariseProcedures = true)),
-      useBAPFrontend = true,
-      expectVerify = true
-    )
-  )
-  runTests(
-    "procedure_summaries",
-    TestConfig(
-      staticAnalysisConfig = Some(StaticAnalysisConfig(summariseProcedures = true)),
-      useBAPFrontend = false,
-      expectVerify = true
-    )
-  )
+  runTests("procedure_summaries", TestConfig(summariseProcedures = true,
+    useBAPFrontend = true, expectVerify = true))
+  runTests("procedure_summaries", TestConfig(summariseProcedures = true,
+    useBAPFrontend = false, expectVerify = true))
 }
 
 // tests that require currently unimplemented functionality to pass
