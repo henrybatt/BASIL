@@ -224,7 +224,7 @@ def stronglyConnectedComponents[T <: CFGPosition, O <: T](walker: IRWalk[T, O], 
       if (!vIndex.contains(next)) {
         strongconnect(next)
         vLowLink(cur) = vLowLink(cur).min(vLowLink(next))
-      } else {
+      } else if (vOnStack(next)) {
         vLowLink(cur) = vLowLink(cur).min(vIndex(next))
       }
     }
@@ -240,6 +240,8 @@ def stronglyConnectedComponents[T <: CFGPosition, O <: T](walker: IRWalk[T, O], 
       out += component
     }
   }
+  println(out)
+  assert(stack.size == 0)
 
   out.map(_.toSet).toList
 }
