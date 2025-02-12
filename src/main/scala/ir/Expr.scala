@@ -246,7 +246,7 @@ sealed trait BoolBinOp(op: String) extends BinOp {
   def opName = op
 }
 
-sealed trait BoolCmpOp extends BinOp
+sealed trait BoolCmpOp extends BoolBinOp
 
 case object BoolEQ extends BoolBinOp("==") with BoolCmpOp
 case object BoolNEQ extends BoolBinOp("!=")
@@ -260,7 +260,7 @@ sealed trait BVBinOp(op: String) extends BinOp {
   def opName = op
 }
 
-sealed trait BVCmpOp extends BinOp
+sealed trait BVCmpOp extends BVBinOp
 
 case object BVAND extends BVBinOp("and")
 case object BVOR extends BVBinOp("or")
