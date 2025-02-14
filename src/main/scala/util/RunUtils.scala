@@ -43,6 +43,8 @@ import util.LogLevel.INFO
 import scala.annotation.tailrec
 import scala.collection.mutable
 
+import ir.slicer.*
+
 /** This file contains the main program execution. See RunUtils.loadAndTranslate for the high-level process.
   */
 
@@ -955,6 +957,8 @@ object RunUtils {
         Logger.info("Interpreter stopped normally.")
       }
     }
+
+    Slicer(ctx.program).run()
 
     IRTransform.prepareForTranslation(q, ctx)
 
