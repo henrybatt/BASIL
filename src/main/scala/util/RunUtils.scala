@@ -349,6 +349,7 @@ object IRTransform {
         modified = modified | procedure.ensures != ens
         procedure.ensures = ens
       }
+    }
 
     modified
   }
