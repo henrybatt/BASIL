@@ -1,100 +1,102 @@
 package ir.slicer
 
 import ir.*
+import ir.eval.evaluateExpr
 
-import ir.transforms.worklistSolver
-import ir.transforms.AbstractDomain
-import util.functional.State
+import ir.transforms.*
 import analysis.IntraProcConstantPropagation
 import analysis.InterProcConstantPropagation
-import analysis.FlatElement
-import analysis.evaluateExpression
-import analysis.getMemoryVariable
-import ir.eval.BasilValue.add
+import analysis.{evaluateExpression, FlatElement}
+import boogie.*
+import analysis.RangeKey
 
-private type SlicingParameter = Variable | StackVariable | GlobalVariable
+case class StackVariable(mem: Memory, variable: Variable, offset: BitVecLiteral | IntLiteral) {
+  override def toString(): String = s"StackVariable($mem, $variable, $offset)"
+}
 
-private type StatementSlice = Set[SlicingParameter]
+case class GlobalVariable(mem: Memory, address: BitVecLiteral | IntLiteral, identifier: String) {
+  override def toString(): String = s"GlobalVariable($mem, $identifier, $address)"
+}
+
+type SlicingParameter = Variable | StackVariable | GlobalVariable
+
+type StatementSlice = Set[SlicingParameter]
 object StatementSlice {
   def apply(): StatementSlice = Set.empty[SlicingParameter]
 }
 
-private trait SliceState:
-  val entrySet = StatementSlice()
-  val exitSet = StatementSlice()
+private def convert(mem: Memory, expression: Expr, globals: Map[BigInt, String]): Option[SlicingParameter] =
 
-private class BlockState extends SliceState
-
-private class ProcedureState extends SliceState:
-  val blocks = Map[Block, BlockState]()
-
-case class StackPointer(variable: Set[Variable], operation: BinOp, offset: BitVecLiteral) {}
-
-case class StackVariable(mem: Memory, index: StackPointer, endian: Endian, size: Int) {
-  override def toString(): String = s"${index.variable.head.name} + ${index.offset}"
-}
-
-case class GlobalVariable(mem: Memory, address: BitVecLiteral, endian: Endian, size: Int, identifier: Option[String]) {
-  override def toString(): String = s"${address}"
-}
-
-class SlicerDomain(
-  constProp: Map[CFGPosition, Map[Variable, FlatElement[BitVecLiteral]]],
-  globals: Map[BigInt, String] = Map()
-) extends AbstractDomain[StatementSlice] {
-  def join(a: StatementSlice, b: StatementSlice, pos: Block) = a.union(b)
-
-  def top = ???
-  def bot = StatementSlice()
-
-  private def convert(
-    prop: Map[Variable, FlatElement[BitVecLiteral]],
-    mem: Memory,
-    expression: Expr,
-    endian: Endian,
-    size: Int
-  ) =
-    expression match {
-      case BinaryExpr(op, arg1, arg2) =>
-        val sp = StackPointer(arg1.variables, op, evaluateExpression(arg2, prop).get)
-        val sv = StackVariable(mem, sp, endian, size)
-        Set(sv)
-
-      case o =>
-        evaluateExpression(o, prop) match {
-          case Some(addr) =>
-            val gv = GlobalVariable(mem, addr, endian, size, globals.get(addr.value))
-            Set(gv)
-          case None =>
-            Set() ++ expression.variables
-        }
+  def evalStackVar(arg1: Variable, arg2: Expr): Option[SlicingParameter] =
+    evaluateExpr(arg2) match {
+      case Some(literal: (BitVecLiteral | IntLiteral)) => Some(StackVariable(mem, arg1, literal))
+      case _ => None
     }
 
-  private def convertMemoryStore(a: MemoryStore): Set[SlicingParameter] =
-    convert(constProp(a), a.mem, a.index, a.endian, a.size)
+  def evalGlobalVar(e: Expr): Option[SlicingParameter] =
+    evaluateExpr(e) match {
+      case Some(addr: BitVecLiteral) =>
+        globals.get(addr.value) match {
+          case Some(identifier) => Some(GlobalVariable(mem, addr, identifier))
+          case None => None
+        }
+      case _ => None
+    }
+
+  expression match {
+    case BinaryExpr(BVADD, arg1: Variable, arg2) => evalStackVar(arg1, arg2)
+    case BinaryExpr(BVSUB, arg1: Variable, arg2) => evalStackVar(arg1, UnaryExpr(BVNEG, arg2))
+    case v: Variable => Some(v)
+    case e => evalGlobalVar(e)
+  }
+
+class SlicerDomain(globals: Map[BigInt, String])
+    extends PowerSetDomain[SlicingParameter] {
 
   def transfer(s: StatementSlice, a: Command): StatementSlice =
     a match {
-      case a: LocalAssign => (s - a.lhs) ++ a.rhs.variables
-      case a: MemoryLoad => (s - a.lhs) ++ convert(constProp(a), a.mem, a.index, a.endian, a.size)
+      case a: LocalAssign =>
+        if (s.contains(a.lhs)) then (s - a.lhs) ++ a.rhs.variables
+        else s
+
+      case a: MemoryLoad =>
+        convert(a.mem, a.index, globals)
+        if (s.contains(a.lhs)) then
+          convert(a.mem, a.index, globals) match {
+            case Some(variable) => (s - a.lhs) + variable
+            case None => (s - a.lhs) ++ a.index.variables
+          }
+        else s
+
       case m: MemoryStore =>
-        (s -- convert(constProp(m), m.mem, m.index, m.endian, m.size)) ++ m.value.variables
+        convert(m.mem, m.index, globals) match {
+          case Some(variable) => if (s.contains(variable)) then (s - variable) ++ m.value.variables else s
+          case None =>
+            if ((Set() ++ m.index.variables).subsetOf(s)) then (s -- m.index.variables) ++ m.value.variables
+            else s
+        }
+
       case a: Assume => s ++ a.body.variables
       case a: Assert => s ++ a.body.variables
-      case _ => s
+      case i: IndirectCall => s
+      case c: DirectCall => s
+      case g: GoTo => s
+      case r: Return => s
+      case r: Unreachable => s
+      case n: NOP => s
     }
 }
 
-class Slicer(program: Program):
+class Slicer(program: Program, globals: Map[BigInt, String]):
 
   def run(): Unit =
-    val constPropResults = InterProcConstantPropagation(program).analyze()
+    val domain = SlicerDomain(
+      globals = globals
+    )
 
-    val startingProc = program.mainProcedure
-    val domain = SlicerDomain(constPropResults)
+    val (entrySet, exitSet) = worklistSolver(domain).solveProc(program.mainProcedure, backwards = true)
 
-    val (first, last) = worklistSolver(domain).solveProc(startingProc, backwards = true)
+    // entrySet.foreach{
+    //   case (k, v) => Logger.info(s"${k.label}\n\tEntry: ${entrySet(k).size}: ${exitSet(k)} ->\n\tExit: ${v.size}: $v")
+    // }
 
-    last.foreach { case (k, v) =>
-      println(s"${k.label}\n\t${v.size}: $v")
-    }
