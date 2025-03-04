@@ -25,7 +25,7 @@ object StatementSlice {
   def apply(): StatementSlice = Set.empty[SlicingParameter]
 }
 
-private def convert(mem: Memory, expression: Expr, globals: Map[BigInt, String]): Option[SlicingParameter] =
+private def convert(mem: Memory, expression: Expr, globals: Map[RangeKey, String]): Option[SlicingParameter] =
 
   def evalStackVar(arg1: Variable, arg2: Expr): Option[SlicingParameter] =
     evaluateExpr(arg2) match {
@@ -36,8 +36,8 @@ private def convert(mem: Memory, expression: Expr, globals: Map[BigInt, String])
   def evalGlobalVar(e: Expr): Option[SlicingParameter] =
     evaluateExpr(e) match {
       case Some(addr: BitVecLiteral) =>
-        globals.get(addr.value) match {
-          case Some(identifier) => Some(GlobalVariable(mem, addr, identifier))
+        globals.find((range, _) => range.start <= addr.value && addr.value <= range.end) match {
+          case Some(_, identifier) => Some(GlobalVariable(mem, addr, identifier))
           case None => None
         }
       case _ => None
@@ -50,7 +50,7 @@ private def convert(mem: Memory, expression: Expr, globals: Map[BigInt, String])
     case e => evalGlobalVar(e)
   }
 
-class SlicerDomain(globals: Map[BigInt, String])
+class SlicerDomain(globals: Map[RangeKey, String])
     extends PowerSetDomain[SlicingParameter] {
 
   def transfer(s: StatementSlice, a: Command): StatementSlice =
@@ -87,11 +87,20 @@ class SlicerDomain(globals: Map[BigInt, String])
     }
 }
 
-class Slicer(program: Program, globals: Map[BigInt, String]):
+class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigInt, BigInt]):
+
+  def transform_globals(): Map[RangeKey, String] =
+    val global = globals
+      .map(s => RangeKey(s.address, s.address + (s.size / BigInt(8)) * BigInt(s.arraySize.getOrElse(1)) - 1) -> s.name)
+      .toMap
+    global ++ globalOffsets.collect({
+      case (k, v) if global.find((range, _) => range.start == v).nonEmpty =>
+        (RangeKey(k, k), (global.find((range, _) => range.start == v).get).last)
+    })
 
   def run(): Unit =
     val domain = SlicerDomain(
-      globals = globals
+      globals = transform_globals(),
     )
 
     val (entrySet, exitSet) = worklistSolver(domain).solveProc(program.mainProcedure, backwards = true)

@@ -958,7 +958,7 @@ object RunUtils {
       }
     }
 
-    Slicer(ctx.program).run()
+    Slicer(ctx.program, ctx.globals, ctx.globalOffsets).run()
 
     IRTransform.prepareForTranslation(q, ctx)
 
