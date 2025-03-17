@@ -902,6 +902,7 @@ object RunUtils {
 
       if config.analyses.contains(Norm) then
         DSALogger.info("Finished Computing Constraints")
+        val globalGraph = IntervalDSA.getLocal(ctx.program.mainProcedure, ctx, SymbolicValues.empty, Set[Constraint]())
         val DSA = IntervalDSA.getLocals(ctx, sva, cons)
         DSATimer.checkPoint("Finished DSA Local Phase")
         DSA.values.foreach(_.localCorrectness())
@@ -912,6 +913,11 @@ object RunUtils {
         DSALogger.info("Performed correctness check")
         val DSATD = IntervalDSA.solveTDs(DSABU)
         DSATimer.checkPoint("Finished DSA TD Phase")
+        DSATD.values.foreach(_.localCorrectness())
+        DSALogger.info("Performed correctness check")
+        DSATD.values.foreach(g => globalGraph.globalTransfer(g, globalGraph))
+        DSATD.values.foreach(g => globalGraph.globalTransfer(globalGraph, g))
+        DSATimer.checkPoint("Finished DSA global graph")
         DSATD.values.foreach(_.localCorrectness())
         DSALogger.info("Performed correctness check")
 
