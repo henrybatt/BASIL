@@ -923,8 +923,9 @@ object RunUtils {
 
         IntervalDSA.checkConsistentRegions(DSATD)
         IntervalDSA.checkReachable(ctx.program, DSATD)
-        visit_prog(MemoryTransform(DSATD), ctx.program)
         dsaContext = Some(dsaContext.get.copy(local = DSA, bottomUp = DSABU, topDown = DSATD))
+
+        if q.memoryTransform then visit_prog(MemoryTransform(DSATD), ctx.program)
     }
 
     if (q.runInterpret) {
