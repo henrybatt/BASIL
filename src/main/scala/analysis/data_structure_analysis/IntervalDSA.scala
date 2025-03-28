@@ -224,13 +224,6 @@ class IntervalGraph(
   def callTransfer(phase: DSAPhase, cons: DirectCallConstraint, source: IntervalGraph, target: IntervalGraph): Unit = {
     require(phase == TD || phase == BU)
     val oldToNew = mutable.Map[IntervalNode, IntervalNode]()
-//    val targetGlobal = target.find(target.nodes(Global).get(0))
-//    var sourceGlobal = source.find(source.nodes(Global).get(0))
-//    val old = source.nodes(Global).clone(target, false, oldToNew)
-//    val globalNode = sourceGlobal.node.clone(target, true, oldToNew)
-//
-//    sourceGlobal = globalNode.get(targetGlobal.interval)
-//    target.mergeCells(sourceGlobal, targetGlobal)
     DSALogger.info(s"cloning ${source.proc.procName} into ${target.proc.procName}, $phase")
     cons.inParams.filter(f => cons.target.formalInParam.contains(f._1)).foreach { case (formal, actual) =>
       val (sourceExpr, targetExpr) = if phase == TD then (actual, formal) else (formal, actual)
@@ -268,6 +261,13 @@ class IntervalGraph(
       )
     val targetCells = target.exprToCells(targetExpr).map(target.find)
     target.localCorrectness()
+ /*   if targetCells.nonEmpty && sourceCells.nonEmpty then
+      assert(targetCells.size == 1)
+      assert(sourceCells.size == 1)
+      val sourceCell = sourceCells.head
+      val targetCell = targetCells.head
+      if sourceCell.node.bases.contains(Global) != targetCell.node.bases.contains(Global) then
+        print("")*/
     if (targetCells ++ sourceCells).nonEmpty then target.mergeCells(targetCells ++ sourceCells)
     target.localCorrectness()
   }
