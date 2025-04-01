@@ -258,7 +258,7 @@ class IntervalGraph(
       )
     val targetCells = target.exprToCells(targetExpr).map(target.find)
     target.localCorrectness()
- /*   if targetCells.nonEmpty && sourceCells.nonEmpty then
+    /*   if targetCells.nonEmpty && sourceCells.nonEmpty then
       assert(targetCells.size == 1)
       assert(sourceCells.size == 1)
       val sourceCell = sourceCells.head
@@ -267,16 +267,14 @@ class IntervalGraph(
         print("")*/
     if (targetCells ++ sourceCells).nonEmpty then target.mergeCells(targetCells ++ sourceCells)
 
-    sourceCells.foreach(
-      cell =>
-        val node = cell.node
-        val sourceBases = node.bases
-        sourceBases.foreach {
-          case (base, offset) if target.nodes.contains(base) =>
-            target.mergeCells(node.get(offset), target.find(target.nodes(base).get(0)))
-          case _ =>
-        }
-
+    sourceCells.foreach(cell =>
+      val node = cell.node
+      val sourceBases = node.bases
+      sourceBases.foreach {
+        case (base, offset) if target.nodes.contains(base) =>
+          target.mergeCells(node.get(offset), target.find(target.nodes(base).get(0)))
+        case _ =>
+      }
     )
     target.localCorrectness()
   }
@@ -1055,7 +1053,7 @@ class IntervalCell(val node: IntervalNode, val interval: Interval) {
 }
 
 object IntervalDSA {
-  
+
   def getPointers(graph: IntervalGraph): Map[IntervalCell, Set[IntervalCell]] = {
     val (nodes, edges) = graph.collect()
     edges.groupMap((_, pointee) => pointee)((pointer, _) => pointer)
@@ -1077,8 +1075,8 @@ object IntervalDSA {
     val queue = mutable.Queue[IntervalNode]().enqueueAll(entry)
     while queue.nonEmpty do {
       val node = queue.dequeue()
-      node.bases.keys/*.filterNot(b => b.isInstanceOf[Ret] || b.isInstanceOf[Heap] || b.isInstanceOf[Par])*/.foreach(base =>
-        assert(!found.contains(base) || found(base) == node, s"$base was in $node and ${found(base)}")
+      node.bases.keys /*.filterNot(b => b.isInstanceOf[Ret] || b.isInstanceOf[Heap] || b.isInstanceOf[Par])*/ .foreach(
+        base => assert(!found.contains(base) || found(base) == node, s"$base was in $node and ${found(base)}")
       )
       node.bases.keys.foreach(found.update(_, node))
       seen.add(node)
@@ -1125,7 +1123,6 @@ object IntervalDSA {
         )
       )
   }
-
 
   def getLocal(
     proc: Procedure,
