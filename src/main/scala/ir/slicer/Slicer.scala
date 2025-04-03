@@ -10,21 +10,6 @@ import analysis.{evaluateExpression, FlatElement}
 import boogie.*
 import analysis.RangeKey
 
-case class StackVariable(mem: Memory, variable: Variable, offset: BitVecLiteral | IntLiteral) {
-  override def toString(): String = s"StackVariable($mem, $variable, $offset)"
-}
-
-case class GlobalVariable(mem: Memory, address: BitVecLiteral | IntLiteral, identifier: String) {
-  override def toString(): String = s"GlobalVariable($mem, $identifier, $address)"
-}
-
-type SlicingParameter = Variable | StackVariable | GlobalVariable
-
-type StatementSlice = Set[SlicingParameter]
-object StatementSlice {
-  def apply(): StatementSlice = Set.empty[SlicingParameter]
-}
-
 private def convert(mem: Memory, expression: Expr, globals: Map[RangeKey, String]): Option[SlicingParameter] =
 
   def evalStackVar(arg1: Variable, arg2: Expr): Option[SlicingParameter] =
