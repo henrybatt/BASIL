@@ -18,6 +18,32 @@ class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigI
     })
   }
 
+  private def computeEntrySets(
+    summary: Map[CFGPosition, StatementSlice],
+    slicingCriterion: Map[CFGPosition, StatementSlice] = Map()
+  ): Map[CFGPosition, StatementSlice] = {
+
+    def flattern(n: Iterable[Procedure | Block]): StatementSlice = {
+      n.toList.flatMap(b => summary.get(b).toList) match {
+        case Nil => Set.empty
+        case h :: Nil => h
+        case h :: tl => tl.foldLeft(h)((acc, nb) => acc.union(nb))
+      }
+    }
+
+    def entrySet(n: CFGPosition): StatementSlice = {
+      (n match {
+        case p: Procedure => flattern(p.callers())
+        case b: Block => flattern(b.nextBlocks)
+        case s: Statement => summary(s.successor)
+        case _ => StatementSlice()
+      }) ++ slicingCriterion.getOrElse(n, StatementSlice())
+
+    }
+
+    summary.map({ case (k, v) => (k, entrySet(k)) })
+  }
+
   def run(): Unit = {
 
     val slicingCriterion: Map[CFGPosition, StatementSlice] = Map(
@@ -25,4 +51,8 @@ class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigI
 
     val results = SlicerAnalysis(program, globals = transformGlobals(), slicingCriterion = slicingCriterion).analyze()
 
+    val entrySets = computeEntrySets(results, slicingCriterion)
 
+  }
+
+}
