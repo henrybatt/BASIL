@@ -5,6 +5,7 @@ import ir.eval.evaluateExpr
 
 import boogie.*
 import analysis.RangeKey
+import util.SlicerLogger
 
 class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigInt, BigInt]) {
 
@@ -18,12 +19,42 @@ class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigI
     })
   }
 
+  private def setsToString(
+    entrySets: Map[CFGPosition, StatementSlice],
+    exitSets: Map[CFGPosition, StatementSlice]
+  ): String = {
+
+    def get(n: CFGPosition, indent: String = ""): String = {
+      s"${indent}> Entry: ${entrySets.getOrElse(n, StatementSlice())}\n${indent}> Exit:  ${exitSets.getOrElse(n, StatementSlice())}"
+    }
+
+    var result = ""
+    for (proc <- program.procedures) {
+      result += (s"-------Proc: ${proc.name}-------") + "\n"
+      result += get(proc) + "\n\n"
+      var i = 1;
+      for (block <- proc.blocks) {
+        result += (s"\t------$i Block: ${block.label}-------") + "\n"
+        result += get(block, "\t") + "\n\n"
+        i += 1
+        for (statement <- block.statements) {
+          result += (s"\t\t$statement") + "\n"
+          result += get(block, "\t\t") + "\n\n"
+        }
+        result += (s"\t\t${block.jump}") + "\n"
+        result += get(block.jump, "\t\t") + "\n\n"
+      }
+    }
+    result
+
+  }
+
   private def computeEntrySets(
     summary: Map[CFGPosition, StatementSlice],
     slicingCriterion: Map[CFGPosition, StatementSlice] = Map()
   ): Map[CFGPosition, StatementSlice] = {
 
-    def flattern(n: Iterable[Procedure | Block]): StatementSlice = {
+    def flatten(n: Iterable[Procedure | Block]): StatementSlice = {
       n.toList.flatMap(b => summary.get(b).toList) match {
         case Nil => Set.empty
         case h :: Nil => h
@@ -33,8 +64,8 @@ class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigI
 
     def entrySet(n: CFGPosition): StatementSlice = {
       (n match {
-        case p: Procedure => flattern(p.callers())
-        case b: Block => flattern(b.nextBlocks)
+        case p: Procedure => flatten(p.callers())
+        case b: Block => flatten(b.nextBlocks)
         case s: Statement => summary(s.successor)
         case _ => StatementSlice()
       }) ++ slicingCriterion.getOrElse(n, StatementSlice())
@@ -53,6 +84,7 @@ class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigI
 
     val entrySets = computeEntrySets(results, slicingCriterion)
 
+    SlicerLogger.info(setsToString(entrySets, results))
   }
 
 }

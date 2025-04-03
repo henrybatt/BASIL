@@ -963,7 +963,7 @@ object RunUtils {
     Logger.info("[!] Stripping unreachable")
     transforms.stripUnreachableFunctions(ctx.program, q.loading.procedureTrimDepth)
 
-    Other.print_program(ctx.program)
+    // Other.print_program(ctx.program)
 
     Slicer(ctx.program, ctx.globals, ctx.globalOffsets).run()
 

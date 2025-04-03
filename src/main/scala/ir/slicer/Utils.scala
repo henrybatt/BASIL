@@ -5,7 +5,7 @@ import util.SlicerLogger
 
 object Other {
   def print_program(program: Program): Unit = {
-    SlicerLogger.info(print_program(program))
+    SlicerLogger.info(program_toString(program))
   }
 
   def program_toString(program: Program): String = {
@@ -24,5 +24,4 @@ object Other {
     }
     result
   }
-
 }
