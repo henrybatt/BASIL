@@ -958,6 +958,13 @@ object RunUtils {
       }
     }
 
+    // Strip unreachables first. Don't want to slice over them
+    // Prob not needed as they're unreachable ....
+    Logger.info("[!] Stripping unreachable")
+    transforms.stripUnreachableFunctions(ctx.program, q.loading.procedureTrimDepth)
+
+    Other.print_program(ctx.program)
+
     Slicer(ctx.program, ctx.globals, ctx.globalOffsets).run()
 
     IRTransform.prepareForTranslation(q, ctx)
