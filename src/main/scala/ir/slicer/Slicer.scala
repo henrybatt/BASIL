@@ -46,7 +46,6 @@ class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigI
       }
     }
     result
-
   }
 
   private def computeEntrySets(
@@ -80,11 +79,13 @@ class Slicer(program: Program, globals: Set[SpecGlobal], globalOffsets: Map[BigI
     val slicingCriterion: Map[CFGPosition, StatementSlice] = Map(
     )
 
-    val results = SlicerAnalysis(program, globals = transformGlobals(), slicingCriterion = slicingCriterion).analyze()
+    val results = SliceAnalysis(program, transformGlobals())
+      .analyze()
+      .map({ case (k, v) =>
+        (k -> v.keys.toSet)
+      })
 
     val entrySets = computeEntrySets(results, slicingCriterion)
-
     SlicerLogger.info(setsToString(entrySets, results))
   }
-
 }
