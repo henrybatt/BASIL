@@ -3,7 +3,6 @@ package ir.slicer
 import ir.*
 import boogie.*
 import analysis.RangeKey
-import analysis.solvers.SimpleWorklistFixpointSolver
 import analysis.*
 
 import analysis.solvers.*

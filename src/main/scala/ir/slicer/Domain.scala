@@ -1,11 +1,9 @@
 package ir.slicer
 
 import ir.*
-import boogie.*
 import analysis.RangeKey
 import analysis.solvers.SimpleWorklistFixpointSolver
 import analysis.*
-
 import analysis.solvers.*
 
 abstract class TestAnalysis(
@@ -29,7 +27,6 @@ abstract class TestAnalysis(
         else extended
 
       case a: MemoryLoad =>
-        convert(a.mem, a.index, globals)
         if (extended.contains(a.lhs)) then
           convert(a.mem, a.index, globals) match {
             case Some(variable) => (extended - a.lhs) + variable
@@ -53,7 +50,7 @@ abstract class TestAnalysis(
       case c: DirectCall => extended
       case g: GoTo => extended
       case r: Return => extended
-      case r: Unreachable => extended
+      case u: Unreachable => extended
       case n: NOP => extended
     }
 }
